@@ -5,6 +5,7 @@
 package org.foi.nwtis.ljakopov.web.kontrole;
 
 import java.util.Date;
+import javax.mail.Session;
 
 /**
  *
@@ -28,6 +29,10 @@ public class Poruka {
         this.predmet = predmet;
         this.sadrzaj = sadrzaj;
         this.vrsta = vrsta;
+    }
+
+    public Poruka(Session session) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     public String getId() {

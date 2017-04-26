@@ -6,9 +6,9 @@
     <entry key="admin.username">nwtis_admin</entry>
     <entry key="admin.password">nwtis_foi</entry>
     <entry key="admin.database">mysql</entry>
-    <entry key="user.username">nwtis_g1</entry>
-    <entry key="user.password">g1_nwtis</entry>
-    <entry key="user.database">nwtis_g1</entry>
+    <entry key="user.username">nwtis_g2</entry>
+    <entry key="user.password">g2_nwtis</entry>
+    <entry key="user.database">nwtis_g2</entry>
     <entry key="driver.database.odbc">sun.jdbc.odbc.JdbcOdbcDriver</entry>
     <entry key="driver.database.mysql">com.mysql.jdbc.Driver</entry>
     <entry key="driver.database.derby">org.apache.derby.jdbc.ClientDriver</entry>
