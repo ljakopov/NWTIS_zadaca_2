@@ -17,6 +17,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.mail.Flags;
+import javax.mail.Flags.Flag;
 import javax.mail.Folder;
 import javax.mail.Message;
 import javax.mail.MessagingException;
@@ -108,6 +110,7 @@ public class ObradaPoruka extends Thread {
             java.util.Properties properties = System.getProperties();
             properties.put("mail.smtp.host", server);
             Session session = Session.getInstance(properties, null);
+            System.out.println("POČETAK IZVRŠAVANJA");
 
             String traziNazivUTablici = "SELECT naziv FROM uredaji WHERE id=?";
             // Connect to the store
@@ -138,13 +141,12 @@ public class ObradaPoruka extends Thread {
                 folderZaSpremanjeOstalihPoruka.open(Folder.READ_WRITE);
 
                 Message[] messages = folder.getMessages();
-                Message[] porukaZaPremjestanje = new Message[1];
+                Message[] porukaZaPremjestanje = new Message[MIN_PRIORITY];
                 System.out.println("OVo je broj porula: " + messages.length);
                 for (int i = 0; i < messages.length; ++i) {
-                    System.out.println("OVo je SUBJECT: " + messages[i].getSubject());
+                    porukaZaPremjestanje[0] = messages[i];
 
                     if (messages[i].getSubject().equals(nwtis_porukaString)) {
-                        porukaZaPremjestanje[0] = messages[i];
                         try {
                             Object o = messages[i].getContent();
                             System.out.println("Iamo poruku: " + (String) o);
@@ -155,7 +157,8 @@ public class ObradaPoruka extends Thread {
                         } catch (IOException ex) {
                             Logger.getLogger(ObradaPoruka.class.getName()).log(Level.SEVERE, null, ex);
                         }
-                        System.out.println("Ovo je poruka u poruki za premsjetsanje: " + porukaZaPremjestanje[0].getSubject());
+                        //folder.copyMessages(porukaZaPremjestanje, folderZaSpremanjeIspravnihPoruka);
+                        messages[i].setFlag(Flag.DELETED, true);
 
                         try {
                             Class.forName(db_driver);
@@ -209,7 +212,7 @@ public class ObradaPoruka extends Thread {
                                         unesiTemperaturu.setString(1, uredjaj[2]);
                                         unesiTemperaturu.setString(2, uredjaj[7].replace(";", ""));
                                         unesiTemperaturu.setString(3, uredjaj[4] + " " + uredjaj[5]);
-                                        unesiTemperaturu.setString(4, uredjaj[4] + " " +  uredjaj[5]);
+                                        unesiTemperaturu.setString(4, uredjaj[4] + " " + uredjaj[5]);
                                         unesiTemperaturu.executeUpdate();
                                     } else {
                                         System.out.println("ZAPIS NE POSTOJI U BAZIIII");
@@ -233,7 +236,7 @@ public class ObradaPoruka extends Thread {
                                         unesiEvent.setString(1, uredjaj[2]);
                                         unesiEvent.setString(2, uredjaj[7].replace(";", ""));
                                         unesiEvent.setString(3, uredjaj[4] + " " + uredjaj[5]);
-                                        unesiEvent.setString(4, uredjaj[4] + " " +  uredjaj[5]);
+                                        unesiEvent.setString(4, uredjaj[4] + " " + uredjaj[5]);
                                         unesiEvent.executeUpdate();
                                     } else {
                                         System.out.println("ZAPIS NE POSTOJI U BAZIIII");
@@ -246,11 +249,17 @@ public class ObradaPoruka extends Thread {
                             break;
                         }
                     } else {
-
+                        System.out.println("OVO JE PREMJEŠTANJE PORUKE");
+                        //folder.copyMessages(porukaZaPremjestanje, folderZaSpremanjeOstalihPoruka);
+                        messages[i].setFlag(Flag.DELETED, true);
                     }
 
-                    //TODO dovrišiti čitanje, obradu i prebacivanje u mape
                 }
+                folderZaSpremanjeIspravnihPoruka.close(true);
+                folderZaSpremanjeOstalihPoruka.close(true);
+                folder.close(true);
+                store.close();
+
                 redniBrojCiklusa++;
                 System.out.println("Obrada prouka u cilkusu: " + redniBrojCiklusa);
                 sleep(trajanjeCiklusa * 1000 - trajanjeObrade);
