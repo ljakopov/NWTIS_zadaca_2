@@ -12,6 +12,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -34,46 +35,44 @@ public class ObradaPoruka extends Thread {
     private boolean prekid_obrade = false;
     private ServletContext sc = null;
     String poruka = "";
-    String uredjaj = "";
+    String uredjajZaNaziv;
+    String[] uredjaj;
     Connection c;
 
     public String ProvjeriRegex(String poruka) {
         poruka = poruka.trim();
-        String sintaksaAdd = "^ADD IoT ([1-6]{1}) (\"[^\\\\s]{1,30}\") GPS: ([0-9]{1,3})(([,.]{1})([0-9]{6})),([0-9]{1,3})(([,.]{1})([0-9]{6}));$";
+        String sintaksaAdd = "^ADD IoT ([0-9]{1,6}) (\"[^\\\\s]{1,30}\") GPS: ([0-9]{1,3})(([,.]{1})([0-9]{6})),([0-9]{1,3})(([,.]{1})([0-9]{6}));$";
         Pattern pattern = Pattern.compile(sintaksaAdd);
         Matcher m = pattern.matcher(poruka);
         boolean statusAdd = m.matches();
         boolean statusTemp = false;
         boolean statusEvent = false;
-        System.out.println("Oo je kod ADD: " + statusAdd);
         if (statusAdd) {
+            System.out.println("Oo je kod ADD: " + statusAdd);
             return "ADD";
         } else {
             System.out.println("OVO JE PORUKA KOJA JE DOŠLA DO konzole: " + poruka);
-            String sintaksaTemp = "^TEMP IoT [1-6]{1} T: [0-9]{4}([.])(((0[13578]|(10|12))\\1(0[1-9]|[1-2][0-9]|3[0-1]))|(02\\1(0[1-9]|[1-2][0-9]))|((0[469]|11)\\1(0[1-9]|[1-2][0-9]|30))) (?<![:0-9])(0?[0-9]|1[0-9]|2[0-3]):(60|[0-5][0-9])(?::)?(60|[0-5][0-9])?(?![:0-9]+\\b) C: ([0-9]{1,2});$";
+            String sintaksaTemp = "^TEMP IoT [0-9]{1,6} T: [0-9]{4}([.])(((0[13578]|(10|12))\\1(0[1-9]|[1-2][0-9]|3[0-1]))|(02\\1(0[1-9]|[1-2][0-9]))|((0[469]|11)\\1(0[1-9]|[1-2][0-9]|30))) (?<![:0-9])(0?[0-9]|1[0-9]|2[0-3]):(60|[0-5][0-9])(?::)?(60|[0-5][0-9])?(?![:0-9]+\\b) C: ([0-9]{1,2});$";
             Pattern patternTemp = Pattern.compile(sintaksaTemp);
             Matcher mTemp = patternTemp.matcher(poruka);
             statusTemp = mTemp.matches();
-            System.out.println("Ovo je status TEMP: " + statusTemp);
             if (statusTemp) {
-                System.out.println("OVO JE TEMP");
+                System.out.println("OVO JE TEMP: " + poruka);
                 return "TEMP";
             } else {
-                System.out.println("OVO JE PORUKA KOJA JE DOŠLA DO konzole: " + poruka);
-                String sintaksaEvent = "^EVENT IoT [1-6]{1} T: [0-9]{4}([.])(((0[13578]|(10|12))\\1(0[1-9]|[1-2][0-9]|3[0-1]))|(02\\1(0[1-9]|[1-2][0-9]))|((0[469]|11)\\1(0[1-9]|[1-2][0-9]|30))) (?<![:0-9])(0?[0-9]|1[0-9]|2[0-3]):(60|[0-5][0-9])(?::)?(60|[0-5][0-9])?(?![:0-9]+\\b) F: ([0-9]{1,2});$";
+                String sintaksaEvent = "^EVENT IoT [0-9]{1,6} T: [0-9]{4}([.])(((0[13578]|(10|12))\\1(0[1-9]|[1-2][0-9]|3[0-1]))|(02\\1(0[1-9]|[1-2][0-9]))|((0[469]|11)\\1(0[1-9]|[1-2][0-9]|30))) (?<![:0-9])(0?[0-9]|1[0-9]|2[0-3]):(60|[0-5][0-9])(?::)?(60|[0-5][0-9])?(?![:0-9]+\\b) F: ([0-9]{1,2});$";
                 Pattern patternEvent = Pattern.compile(sintaksaEvent);
                 Matcher mEvent = patternEvent.matcher(poruka);
                 statusEvent = mEvent.matches();
                 System.out.println("Ovo je status EVENT: " + statusEvent);
                 if (statusEvent) {
-                    System.out.println("OVO JE EVENT");
+                    System.out.println("OVO JE EVENT: " + poruka);
                     return "EVENT";
                 } else {
                     return "NISTA";
                 }
             }
         }
-
     }
 
     @Override
@@ -110,7 +109,7 @@ public class ObradaPoruka extends Thread {
             properties.put("mail.smtp.host", server);
             Session session = Session.getInstance(properties, null);
 
-            String traziNazivUTablici = "SELECT naziv FROM uredaji WHERE naziv=?";
+            String traziNazivUTablici = "SELECT naziv FROM uredaji WHERE id=?";
             // Connect to the store
             try {
                 Store store = session.getStore("imap");
@@ -149,7 +148,8 @@ public class ObradaPoruka extends Thread {
                         try {
                             Object o = messages[i].getContent();
                             System.out.println("Iamo poruku: " + (String) o);
-                            uredjaj = (String) o;
+                            uredjaj = ((String) o).split(" ");
+                            uredjajZaNaziv = ((String) o);
                             poruka = ProvjeriRegex((String) o);
 
                         } catch (IOException ex) {
@@ -173,27 +173,77 @@ public class ObradaPoruka extends Thread {
                             Logger.getLogger(ObradaPoruka.class.getName()).log(Level.SEVERE, null, ex);
                         }
                         switch (poruka) {
-                            case "ADD":
-                                System.out.println("OVO JE PROBA ZA ADD: " + uredjaj.indexOf('"'));
-                                System.out.println("OVO JE PROBA ZA ADD: " + uredjaj.lastIndexOf('"'));
-                                System.out.println("OVO JE PRAVA RIJEC: " + uredjaj.substring(uredjaj.indexOf('"') + 1, uredjaj.lastIndexOf('"')));
-                                 {
-                                    try {
-                                        PreparedStatement ps = c.prepareStatement(traziNazivUTablici);
-                                        ps.setString(1, uredjaj.substring(uredjaj.indexOf('"') + 1, uredjaj.lastIndexOf('"')));
-                                        ResultSet resultSet = ps.executeQuery();
-                                        if(resultSet.next()){
-                                            System.out.println("ZAPIS VEC POSTOJI U BAZI");
-                                        }
-                                        else{
-                                            System.out.println("ZAPIS NE POSTOJI U BAZIIII");
-                                        }
-                                        
-                                    } catch (SQLException ex) {
-                                        Logger.getLogger(ObradaPoruka.class.getName()).log(Level.SEVERE, null, ex);
+                            case "ADD": {
+                                try {
+                                    PreparedStatement ps = c.prepareStatement(traziNazivUTablici);
+                                    ps.setString(1, uredjaj[2]);
+                                    ResultSet resultSet = ps.executeQuery();
+                                    if (resultSet.next()) {
+                                        System.out.println("ZAPIS VEC POSTOJI U BAZI");
+                                    } else {
+                                        System.out.println("ZAPIS NE POSTOJI U BAZIIII");
+                                        String sqlUnesiUredjaj = "INSERT INTO uredaji (id, naziv, latitude, longitude, status, vrijeme_promjene, vrijeme_kreiranja) VALUES(?, ?, ?, ?, 0, default, default)";
+                                        PreparedStatement unesiUredjaj = c.prepareStatement(sqlUnesiUredjaj);
+                                        unesiUredjaj.setString(1, uredjaj[2]);
+                                        unesiUredjaj.setString(2, uredjajZaNaziv.substring(uredjajZaNaziv.indexOf('"') + 1, uredjajZaNaziv.lastIndexOf('"')));
+                                        unesiUredjaj.setString(3, uredjajZaNaziv.substring(uredjajZaNaziv.indexOf(':') + 1, uredjajZaNaziv.lastIndexOf(',')).trim());
+                                        unesiUredjaj.setString(4, uredjajZaNaziv.substring(uredjajZaNaziv.indexOf(',') + 1, uredjajZaNaziv.lastIndexOf(';')));
+                                        unesiUredjaj.executeUpdate();
                                     }
+
+                                } catch (SQLException ex) {
+                                    Logger.getLogger(ObradaPoruka.class.getName()).log(Level.SEVERE, null, ex);
                                 }
-                                break;
+                            }
+                            break;
+                            case "TEMP": {
+                                try {
+                                    PreparedStatement psTemp = c.prepareStatement(traziNazivUTablici);
+                                    psTemp.setString(1, uredjaj[2]);
+                                    System.out.println("OVO JE TEMP U QUERY: " + uredjaj[7]);
+                                    ResultSet resultSetTemp = psTemp.executeQuery();
+                                    if (resultSetTemp.next()) {
+                                        System.out.println("ZAPIS VEC POSTOJI U BAZI" + uredjaj[4] + " " + uredjaj[7]);
+                                        String sqlUnesiTemperaturu = "INSERT INTO temperature (id, temp, vrijeme_mjerenja, vrijeme_kreiranja) VALUES(?, ?, ?, ?)";
+                                        PreparedStatement unesiTemperaturu = c.prepareStatement(sqlUnesiTemperaturu);
+                                        unesiTemperaturu.setString(1, uredjaj[2]);
+                                        unesiTemperaturu.setString(2, uredjaj[7].replace(";", ""));
+                                        unesiTemperaturu.setString(3, uredjaj[4] + " " + uredjaj[5]);
+                                        unesiTemperaturu.setString(4, uredjaj[4] + " " +  uredjaj[5]);
+                                        unesiTemperaturu.executeUpdate();
+                                    } else {
+                                        System.out.println("ZAPIS NE POSTOJI U BAZIIII");
+                                    }
+
+                                } catch (SQLException ex) {
+                                    Logger.getLogger(ObradaPoruka.class.getName()).log(Level.SEVERE, null, ex);
+                                }
+                            }
+                            break;
+                            case "EVENT": {
+                                try {
+                                    PreparedStatement psEvent = c.prepareStatement(traziNazivUTablici);
+                                    psEvent.setString(1, uredjaj[2]);
+                                    System.out.println("OVO JE TEMP U QUERY: " + uredjaj[7]);
+                                    ResultSet resultSetTemp = psEvent.executeQuery();
+                                    if (resultSetTemp.next()) {
+                                        System.out.println("ZAPIS VEC POSTOJI U BAZI" + uredjaj[4] + " " + uredjaj[7]);
+                                        String sqlUnesiEvent = "INSERT INTO dogadaji (id, vrsta, vrijeme_izvrsavanja, vrijeme_kreiranja) VALUES(?, ?, ?, ?)";
+                                        PreparedStatement unesiEvent = c.prepareStatement(sqlUnesiEvent);
+                                        unesiEvent.setString(1, uredjaj[2]);
+                                        unesiEvent.setString(2, uredjaj[7].replace(";", ""));
+                                        unesiEvent.setString(3, uredjaj[4] + " " + uredjaj[5]);
+                                        unesiEvent.setString(4, uredjaj[4] + " " +  uredjaj[5]);
+                                        unesiEvent.executeUpdate();
+                                    } else {
+                                        System.out.println("ZAPIS NE POSTOJI U BAZIIII");
+                                    }
+
+                                } catch (SQLException ex) {
+                                    Logger.getLogger(ObradaPoruka.class.getName()).log(Level.SEVERE, null, ex);
+                                }
+                            }
+                            break;
                         }
                     } else {
 
@@ -210,7 +260,6 @@ public class ObradaPoruka extends Thread {
             } catch (MessagingException | InterruptedException ex) {
                 Logger.getLogger(ObradaPoruka.class.getName()).log(Level.SEVERE, null, ex);
             }
-
         }
     }
 
