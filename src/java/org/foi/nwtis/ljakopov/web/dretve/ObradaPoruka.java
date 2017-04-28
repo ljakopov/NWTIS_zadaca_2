@@ -11,14 +11,12 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.mail.Flags;
-import javax.mail.Flags.Flag;
 import javax.mail.Folder;
 import javax.mail.Message;
 import javax.mail.MessagingException;
@@ -40,6 +38,13 @@ public class ObradaPoruka extends Thread {
     String uredjajZaNaziv;
     String[] uredjaj;
     Connection c;
+    int brojPoruka = 0;
+    int brojDodanihIoT = 0;
+    int brojMjerenihTemp = 0;
+    int brojIzvrsenihEvent = 0;
+    int brojPogresaka = 0;
+    long pocetakObrade = 0;
+    long zavrsetakObrade = 0;
 
     public String ProvjeriRegex(String poruka) {
         poruka = poruka.trim();
@@ -66,7 +71,6 @@ public class ObradaPoruka extends Thread {
                 Pattern patternEvent = Pattern.compile(sintaksaEvent);
                 Matcher mEvent = patternEvent.matcher(poruka);
                 statusEvent = mEvent.matches();
-                System.out.println("Ovo je status EVENT: " + statusEvent);
                 if (statusEvent) {
                     System.out.println("OVO JE EVENT: " + poruka);
                     return "EVENT";
@@ -85,6 +89,7 @@ public class ObradaPoruka extends Thread {
 
     @Override
     public void run() {
+        SimpleDateFormat dt = new SimpleDateFormat("dd.MM.yyyy hh.mm.ss.SSS");
         Konfiguracija konf = (Konfiguracija) sc.getAttribute("Mail_Konfig");
         String server = konf.dajPostavku("mail.server");
         String port = konf.dajPostavku("mail.port");
@@ -110,11 +115,13 @@ public class ObradaPoruka extends Thread {
             java.util.Properties properties = System.getProperties();
             properties.put("mail.smtp.host", server);
             Session session = Session.getInstance(properties, null);
-            System.out.println("POČETAK IZVRŠAVANJA");
 
             String traziNazivUTablici = "SELECT naziv FROM uredaji WHERE id=?";
             // Connect to the store
             try {
+                String date = dt.format(new Date());
+                pocetakObrade=new Date().getTime();
+                System.out.println("OVO JE VRIJEME: " + date);
                 Store store = session.getStore("imap");
                 store.connect(server, korisnik, lozinka);
 
@@ -139,12 +146,20 @@ public class ObradaPoruka extends Thread {
                 folderZaSpremanjeIspravnihPoruka.open(Folder.READ_WRITE);
                 Folder folderZaSpremanjeOstalihPoruka = store.getFolder(ostalePoruke);
                 folderZaSpremanjeOstalihPoruka.open(Folder.READ_WRITE);
+                brojPoruka = 0;
+                brojDodanihIoT = 0;
+                brojMjerenihTemp = 0;
+                brojIzvrsenihEvent = 0;
+                brojPogresaka = 0;
 
                 Message[] messages = folder.getMessages();
                 Message[] porukaZaPremjestanje = new Message[MIN_PRIORITY];
                 System.out.println("OVo je broj porula: " + messages.length);
                 for (int i = 0; i < messages.length; ++i) {
                     porukaZaPremjestanje[0] = messages[i];
+                    System.out.println("OVO SU PORUKE: " + messages[i].getSubject());
+                    brojPoruka++;
+                    System.out.println("BROJ PORUKA: " + brojPoruka);
 
                     if (messages[i].getSubject().equals(nwtis_porukaString)) {
                         try {
@@ -158,7 +173,7 @@ public class ObradaPoruka extends Thread {
                             Logger.getLogger(ObradaPoruka.class.getName()).log(Level.SEVERE, null, ex);
                         }
                         //folder.copyMessages(porukaZaPremjestanje, folderZaSpremanjeIspravnihPoruka);
-                        messages[i].setFlag(Flag.DELETED, true);
+                        //messages[i].setFlag(Flag.DELETED, true);
 
                         try {
                             Class.forName(db_driver);
@@ -167,7 +182,7 @@ public class ObradaPoruka extends Thread {
                         }
                         try {
                             if (c == null) {
-                                System.out.println("PONOVNA KONEKCIJA");
+                                //System.out.println("PONOVNA KONEKCIJA");
                                 c = DriverManager.getConnection(db_Host + db_name,
                                         db_Username,
                                         db_Password);
@@ -183,6 +198,7 @@ public class ObradaPoruka extends Thread {
                                     ResultSet resultSet = ps.executeQuery();
                                     if (resultSet.next()) {
                                         System.out.println("ZAPIS VEC POSTOJI U BAZI");
+                                        brojPogresaka++;
                                     } else {
                                         System.out.println("ZAPIS NE POSTOJI U BAZIIII");
                                         String sqlUnesiUredjaj = "INSERT INTO uredaji (id, naziv, latitude, longitude, status, vrijeme_promjene, vrijeme_kreiranja) VALUES(?, ?, ?, ?, 0, default, default)";
@@ -192,6 +208,7 @@ public class ObradaPoruka extends Thread {
                                         unesiUredjaj.setString(3, uredjajZaNaziv.substring(uredjajZaNaziv.indexOf(':') + 1, uredjajZaNaziv.lastIndexOf(',')).trim());
                                         unesiUredjaj.setString(4, uredjajZaNaziv.substring(uredjajZaNaziv.indexOf(',') + 1, uredjajZaNaziv.lastIndexOf(';')));
                                         unesiUredjaj.executeUpdate();
+                                        brojDodanihIoT++;
                                     }
 
                                 } catch (SQLException ex) {
@@ -214,8 +231,10 @@ public class ObradaPoruka extends Thread {
                                         unesiTemperaturu.setString(3, uredjaj[4] + " " + uredjaj[5]);
                                         unesiTemperaturu.setString(4, uredjaj[4] + " " + uredjaj[5]);
                                         unesiTemperaturu.executeUpdate();
+                                        brojMjerenihTemp++;
                                     } else {
                                         System.out.println("ZAPIS NE POSTOJI U BAZIIII");
+                                        brojPogresaka++;
                                     }
 
                                 } catch (SQLException ex) {
@@ -238,8 +257,10 @@ public class ObradaPoruka extends Thread {
                                         unesiEvent.setString(3, uredjaj[4] + " " + uredjaj[5]);
                                         unesiEvent.setString(4, uredjaj[4] + " " + uredjaj[5]);
                                         unesiEvent.executeUpdate();
+                                        brojIzvrsenihEvent++;
                                     } else {
                                         System.out.println("ZAPIS NE POSTOJI U BAZIIII");
+                                        brojPogresaka++;
                                     }
 
                                 } catch (SQLException ex) {
@@ -249,9 +270,9 @@ public class ObradaPoruka extends Thread {
                             break;
                         }
                     } else {
-                        System.out.println("OVO JE PREMJEŠTANJE PORUKE");
+                        //System.out.println("OVO JE PREMJEŠTANJE PORUKE");
                         //folder.copyMessages(porukaZaPremjestanje, folderZaSpremanjeOstalihPoruka);
-                        messages[i].setFlag(Flag.DELETED, true);
+                        //messages[i].setFlag(Flag.DELETED, true);
                     }
 
                 }
@@ -259,7 +280,12 @@ public class ObradaPoruka extends Thread {
                 folderZaSpremanjeOstalihPoruka.close(true);
                 folder.close(true);
                 store.close();
+                System.out.println("OVO JE BROJ PORUKA: " + brojPoruka + " OVO JE BROJ POGREŠAKA: " + brojPogresaka + " IoT: " + brojDodanihIoT + " TEMP: " + brojMjerenihTemp + " EVENT: " + brojIzvrsenihEvent);
 
+                String datez = dt.format(new Date());
+                zavrsetakObrade=new Date().getTime();
+                System.out.println("OVO JE TRAJANJE OBRADE U MILISEKUNDAMA: " + (zavrsetakObrade-pocetakObrade));
+                System.out.println("OVO JE VRIJEME kraja: " + datez);
                 redniBrojCiklusa++;
                 System.out.println("Obrada prouka u cilkusu: " + redniBrojCiklusa);
                 sleep(trajanjeCiklusa * 1000 - trajanjeObrade);

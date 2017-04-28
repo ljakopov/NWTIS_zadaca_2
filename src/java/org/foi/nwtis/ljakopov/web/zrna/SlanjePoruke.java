@@ -6,6 +6,7 @@
 package org.foi.nwtis.ljakopov.web.zrna;
 
 import static java.lang.ProcessBuilder.Redirect.to;
+import java.util.Date;
 import static java.util.Date.from;
 import javax.inject.Named;
 import javax.enterprise.context.RequestScoped;
@@ -97,6 +98,7 @@ public class SlanjePoruke {
             message.setRecipients(Message.RecipientType.TO, toAddresses);
 
             // Set the subject and text
+            message.setSentDate(new Date());
             message.setSubject(this.predmet);
             message.setText(this.sadrzaj);
 

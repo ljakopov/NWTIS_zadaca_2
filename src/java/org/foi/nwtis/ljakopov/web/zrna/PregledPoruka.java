@@ -5,10 +5,23 @@
  */
 package org.foi.nwtis.ljakopov.web.zrna;
 
+import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.inject.Named;
 import javax.enterprise.context.RequestScoped;
+import javax.mail.Folder;
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.NoSuchProviderException;
+import javax.mail.Session;
+import javax.mail.Store;
+import javax.servlet.ServletContext;
+import org.foi.nwtis.ljakopov.konfiguracije.Konfiguracija;
 import org.foi.nwtis.ljakopov.web.kontrole.Izbornik;
 import org.foi.nwtis.ljakopov.web.kontrole.Poruka;
 
@@ -23,15 +36,17 @@ public class PregledPoruka {
     private String posluzitelj;
     private String korisnik;
     private String lozinka;
+    private ServletContext sc = null;
 
     private ArrayList<Izbornik> mape = new ArrayList<>();
-    private String odabranaMapa;
+    private String odabranaMapa = "INBOX";
     private ArrayList<Poruka> poruke = new ArrayList<>();
     private int ukupupnoPorukaMapa = 0;
     int brojPrikazanihPoruka = 0;
     int pozicijaOdPoruke = 0;
     int pozicijaDoPoruke = 0;
     private String traziPoruke;
+    Folder folder = null;
 
     /**
      * Creates a new instance of PregledPoruka
@@ -42,33 +57,67 @@ public class PregledPoruka {
     }
 
     void preuzmiMape() {
-        //TODO promjeni sa stvarnim preuzimanjem mapa
-        mape.add(new Izbornik("INBOX", "INBOX"));
-        mape.add(new Izbornik("NWTiS_poruke", "NWTiS_poruke"));
-        mape.add(new Izbornik("NWTiS_ostale", "NWTiS_ostale"));
-        mape.add(new Izbornik("Sent", "Sent"));
-        mape.add(new Izbornik("Spam", "Spam"));
+        java.util.Properties properties = System.getProperties();
+        properties.put("mail.smtp.host", "127.0.0.1");
+        Session session = Session.getInstance(properties, null);
+        Store store;
+
+        try {
+            store = session.getStore("imap");
+            store.connect("127.0.0.1", "ljakopov@nwtis.nastava.foi.hr", "password");
+            Folder[] f = store.getDefaultFolder().list();
+            for (Folder fd : f) {
+                mape.add(new Izbornik(fd.getName(), Integer.toString(fd.getMessageCount())));
+            }
+
+        } catch (NoSuchProviderException ex) {
+            Logger.getLogger(PregledPoruka.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (MessagingException ex) {
+            Logger.getLogger(PregledPoruka.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
     }
 
     void preuzmiPoruke() {
         poruke.clear();
+        folder = null;
+        /*
+        Konfiguracija konf = (Konfiguracija) sc.getAttribute("Mail_Konfig");
+        String server = konf.dajPostavku("mail.server");
+        System.out.println("OVO JE SERVER: " + server);
+        String port = konf.dajPostavku("mail.port");
+        String korisnik = konf.dajPostavku("mail.usernameThread");
+        String lozinka = konf.dajPostavku("mail.passwordThread");
+         */
+
+        java.util.Properties properties = System.getProperties();
+        properties.put("mail.smtp.host", "127.0.0.1");
+        Session session = Session.getInstance(properties, null);
+        System.out.println("OVO JE ISPIS ZA PROMJENU MAPE: " + this.odabranaMapa);
+
+        Store store;
+        try {
+            store = session.getStore("imap");
+            store.connect("127.0.0.1", "ljakopov@nwtis.nastava.foi.hr", "password");
+            folder = store.getFolder(this.odabranaMapa);
+            folder.open(Folder.READ_WRITE);
+            Message[] messages = folder.getMessages();
+            for (int i = 0; i < messages.length; i++) {
+                try {
+                    poruke.add(new Poruka("0", messages[i].getSentDate(), messages[i].getReceivedDate(), Arrays.toString(messages[i].getFrom()), messages[i].getSubject(), messages[i].getContent().toString(), "0"));
+                } catch (IOException ex) {
+                    Logger.getLogger(PregledPoruka.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        } catch (NoSuchProviderException ex) {
+            Logger.getLogger(PregledPoruka.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (MessagingException ex) {
+            Logger.getLogger(PregledPoruka.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        ukupupnoPorukaMapa = poruke.size();
+
         //TODO promjeni sa stvarnim preuzimanjem poruka
         //TODO razmisli o optimiranju preuzimanja poruka
-        int i = 0;
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-        poruke.add(new Poruka(Integer.toString(i++), new Date(), new Date(), "pero@localhost", "P " + Integer.toString(i), "Poruka " + Integer.toString(i), "0"));
-
-        ukupupnoPorukaMapa = poruke.size();
     }
 
     public String promjenaMape() {
@@ -129,6 +178,10 @@ public class PregledPoruka {
 
     public ArrayList<Poruka> getPoruke() {
         return poruke;
+    }
+
+    public void setSc(ServletContext sc) {
+        this.sc = sc;
     }
 
 }
