@@ -17,12 +17,18 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.mail.Address;
 import javax.mail.Folder;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.NoSuchProviderException;
+import javax.mail.SendFailedException;
 import javax.mail.Session;
 import javax.mail.Store;
+import javax.mail.Transport;
+import javax.mail.internet.AddressException;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 import javax.servlet.ServletContext;
 import org.foi.nwtis.ljakopov.konfiguracije.Konfiguracija;
 
@@ -81,6 +87,49 @@ public class ObradaPoruka extends Thread {
         }
     }
 
+    private void PosaljiStatistiku(String posluzitelj, String salje, String prima, String predmet, String sadrzaj) {
+        String status;
+
+        try {
+            // Create the JavaMail session
+            java.util.Properties properties = System.getProperties();
+            properties.put("mail.smtp.host", posluzitelj);
+
+            Session session
+                    = Session.getInstance(properties, null);
+
+            // Construct the message
+            Message message = new MimeMessage(session);
+
+            // Set the from address
+            Address fromAddress = new InternetAddress(salje);
+            message.setFrom(fromAddress);
+
+            // Parse and set the recipient addresses
+            Address[] toAddresses = InternetAddress.parse(prima);
+            message.setRecipients(Message.RecipientType.TO, toAddresses);
+
+            // Set the subject and text
+            message.setSentDate(new Date());
+            message.setSubject(predmet);
+            message.setText(sadrzaj);
+
+            Transport.send(message);
+
+            status = "Your message was sent.";
+        } catch (AddressException e) {
+            e.printStackTrace();
+            status = "There was an error parsing the addresses.";
+        } catch (SendFailedException e) {
+            e.printStackTrace();
+            status = "There was an error sending the message.";
+        } catch (MessagingException e) {
+            e.printStackTrace();
+            status = "There was an unexpected error.";
+        }
+
+    }
+
     @Override
     public void interrupt() {
         prekid_obrade = true;
@@ -103,6 +152,8 @@ public class ObradaPoruka extends Thread {
         String db_Host = konf.dajPostavku("server.database");
         String db_name = konf.dajPostavku("user.database");
         String db_driver = konf.dajPostavku("driver.database.mysql");
+        String saljiStatistiku = konf.dajPostavku("mail.usernameStatistics");
+        String saljiStatistikuPredmet = konf.dajPostavku("mail.subjectStatistics");
 
         int trajanjeCiklusa = Integer.parseInt(konf.dajPostavku("mail.timeSecThread"));
         //TODO i za ostale parametre
@@ -119,9 +170,9 @@ public class ObradaPoruka extends Thread {
             String traziNazivUTablici = "SELECT naziv FROM uredaji WHERE id=?";
             // Connect to the store
             try {
-                String date = dt.format(new Date());
-                pocetakObrade=new Date().getTime();
-                System.out.println("OVO JE VRIJEME: " + date);
+                String pocetakObradeZapis = dt.format(new Date());
+                pocetakObrade = new Date().getTime();
+                System.out.println("OVO JE VRIJEME: " + pocetakObradeZapis);
                 Store store = session.getStore("imap");
                 store.connect(server, korisnik, lozinka);
 
@@ -182,7 +233,7 @@ public class ObradaPoruka extends Thread {
                         }
                         try {
                             if (c == null) {
-                                //System.out.println("PONOVNA KONEKCIJA");
+                                System.out.println("PONOVNA KONEKCIJA");
                                 c = DriverManager.getConnection(db_Host + db_name,
                                         db_Username,
                                         db_Password);
@@ -220,7 +271,6 @@ public class ObradaPoruka extends Thread {
                                 try {
                                     PreparedStatement psTemp = c.prepareStatement(traziNazivUTablici);
                                     psTemp.setString(1, uredjaj[2]);
-                                    System.out.println("OVO JE TEMP U QUERY: " + uredjaj[7]);
                                     ResultSet resultSetTemp = psTemp.executeQuery();
                                     if (resultSetTemp.next()) {
                                         System.out.println("ZAPIS VEC POSTOJI U BAZI" + uredjaj[4] + " " + uredjaj[7]);
@@ -246,9 +296,8 @@ public class ObradaPoruka extends Thread {
                                 try {
                                     PreparedStatement psEvent = c.prepareStatement(traziNazivUTablici);
                                     psEvent.setString(1, uredjaj[2]);
-                                    System.out.println("OVO JE TEMP U QUERY: " + uredjaj[7]);
-                                    ResultSet resultSetTemp = psEvent.executeQuery();
-                                    if (resultSetTemp.next()) {
+                                    ResultSet resultSetEvent = psEvent.executeQuery();
+                                    if (resultSetEvent.next()) {
                                         System.out.println("ZAPIS VEC POSTOJI U BAZI" + uredjaj[4] + " " + uredjaj[7]);
                                         String sqlUnesiEvent = "INSERT INTO dogadaji (id, vrsta, vrijeme_izvrsavanja, vrijeme_kreiranja) VALUES(?, ?, ?, ?)";
                                         PreparedStatement unesiEvent = c.prepareStatement(sqlUnesiEvent);
@@ -282,12 +331,21 @@ public class ObradaPoruka extends Thread {
                 store.close();
                 System.out.println("OVO JE BROJ PORUKA: " + brojPoruka + " OVO JE BROJ POGREŠAKA: " + brojPogresaka + " IoT: " + brojDodanihIoT + " TEMP: " + brojMjerenihTemp + " EVENT: " + brojIzvrsenihEvent);
 
-                String datez = dt.format(new Date());
-                zavrsetakObrade=new Date().getTime();
-                System.out.println("OVO JE TRAJANJE OBRADE U MILISEKUNDAMA: " + (zavrsetakObrade-pocetakObrade));
-                System.out.println("OVO JE VRIJEME kraja: " + datez);
+                String zavrsetakObradeZapis = dt.format(new Date());
+                zavrsetakObrade = new Date().getTime();
+                System.out.println("OVO JE TRAJANJE OBRADE U MILISEKUNDAMA: " + (zavrsetakObrade - pocetakObrade));
+                System.out.println("OVO JE VRIJEME kraja: " + zavrsetakObradeZapis);
                 redniBrojCiklusa++;
                 System.out.println("Obrada prouka u cilkusu: " + redniBrojCiklusa);
+                String statistikaPoruka = " Obrada započela u: " + pocetakObradeZapis
+                        + " Obrada završila u: " + zavrsetakObradeZapis
+                        + " Trajanje obrade u ms: " + (zavrsetakObrade - pocetakObrade)
+                        + " Broj poruka: " + brojPoruka
+                        + " Broj dodanih IOT: " + brojDodanihIoT
+                        + " Broj mjerenih TEMP: " + brojMjerenihTemp
+                        + " Broj izvršenih EVENT: " + brojIzvrsenihEvent
+                        + " Broj pogrešaka: " + brojPogresaka;
+                //PosaljiStatistiku(server, korisnik, saljiStatistiku, saljiStatistikuPredmet, statistikaPoruka);
                 sleep(trajanjeCiklusa * 1000 - trajanjeObrade);
 
             } catch (NoSuchProviderException ex) {

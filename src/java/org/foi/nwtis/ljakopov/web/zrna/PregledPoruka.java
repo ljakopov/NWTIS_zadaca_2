@@ -6,10 +6,8 @@
 package org.foi.nwtis.ljakopov.web.zrna;
 
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.inject.Named;
@@ -102,9 +100,19 @@ public class PregledPoruka {
             folder = store.getFolder(this.odabranaMapa);
             folder.open(Folder.READ_WRITE);
             Message[] messages = folder.getMessages();
-            for (int i = 0; i < messages.length; i++) {
+            System.out.println("OVO JE TXT TRAZI: " + this.traziPoruke);
+            for (int i = messages.length; i > 0; i--) {
                 try {
-                    poruke.add(new Poruka("0", messages[i].getSentDate(), messages[i].getReceivedDate(), Arrays.toString(messages[i].getFrom()), messages[i].getSubject(), messages[i].getContent().toString(), "0"));
+                    if (this.traziPoruke != null && !"".equals(this.traziPoruke)) {
+                        System.out.println("OVO JE PRETRAGA PORUKA");
+                        if (messages[i - 1].getContent().toString().contains(this.traziPoruke) == true) {
+                            poruke.add(new Poruka("0", messages[i - 1].getSentDate(), messages[i - 1].getReceivedDate(), Arrays.toString(messages[i - 1].getFrom()), messages[i - 1].getSubject(), messages[i - 1].getContent().toString(), "0"));
+                        }
+                    }
+                    else{
+                        System.out.println("OVO JE SAMO ISPIS");
+                        poruke.add(new Poruka("0", messages[i - 1].getSentDate(), messages[i - 1].getReceivedDate(), Arrays.toString(messages[i - 1].getFrom()), messages[i - 1].getSubject(), messages[i - 1].getContent().toString(), "0"));
+                    }
                 } catch (IOException ex) {
                     Logger.getLogger(PregledPoruka.class.getName()).log(Level.SEVERE, null, ex);
                 }

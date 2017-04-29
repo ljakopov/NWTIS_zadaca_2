@@ -5,28 +5,60 @@
       xmlns:f="http://xmlns.jcp.org/jsf/core">
     <f:view locale="#{lokalizator.odabraniJezik}">
         <h:head>
+            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous"></link>
+            <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js" integrity="sha384-A7FZj7v+d/sdmMqp/nOQwliLvUsJfDHW+k9Omg/a/EheAdgtzNs3hpfag6Ed950n" crossorigin="anonymous"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
+            <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
             <title>#{m.slanjePoruka_naslov}</title>
         </h:head>
         <h:body>
-                  <h:form>
-                <h:outputLabel value="#{m.slanjePoruka_salje}" />
-                <h:inputText value="#{slanjePoruke.salje}" />
-                <br/>
-                <h:outputLabel value="#{m.slanjePoruka_prima}" />
-                <h:inputText value="#{slanjePoruke.prima}" />
-                <br/>
-                <h:outputLabel value="#{m.slanjePoruka_predmet}" />
-                <h:inputText value="#{slanjePoruke.predmet}" />
-                <br/>
-                <h:outputLabel value="#{m.slanjePoruka_sadrzaj}" />
-                <h:inputTextarea value="#{slanjePoruke.sadrzaj}" />
-                <br/>
-                <h:commandButton value="#{m.slanjePoruka_salji}" action="#{slanjePoruke.saljiPoruku()}" />
-                <br/><br/>
-                <h:commandLink value="#{m.index_naslov}" action="#{slanjePoruke.pocetna}" />
-                <br/>
-                <h:commandLink value="#{m.index_pregledPoruka}" action="#{slanjePoruke.pregledPoruka}" />
-            </h:form>
+            <br/>
+            <div class="container">
+                <div class="card">
+                    <div class="card-block">
+                        <h:form>
+                            <div class="form-group row">
+                                <h:outputLabel value="#{m.slanjePoruka_salje}" class="col-2 col-form-label" />
+                                <div class="col-10">
+                                    <h:inputText class="form-control" value="#{slanjePoruke.salje}" />
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <h:outputLabel value="#{m.slanjePoruka_prima}" class="col-2 col-form-label" />
+                                <div class="col-10">
+                                    <h:inputText  class="form-control" value="#{slanjePoruke.prima}" />
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <h:outputLabel value="#{m.slanjePoruka_predmet}" class="col-2 col-form-label"/>
+                                <div class="col-10">
+                                    <h:inputText class="form-control" value="#{slanjePoruke.predmet}" />
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <h:outputLabel value="#{m.slanjePoruka_sadrzaj}" class="col-2 col-form-label" />
+                                <div class="col-10">
+                                    <h:inputTextarea class="form-control" value="#{slanjePoruke.sadrzaj}" />
+                                </div>
+                            </div>
+                            <h:commandButton value="#{m.slanjePoruka_salji}" action="#{slanjePoruke.saljiPoruku()}" class="btn btn-primary"/>
+                            <br/><br/>
+                            <div class="alert alert-danger" role="alert">
+                                <div class="container">
+                                    <div class="row">
+                                        <div class="col-6 col-sm-3">
+                                            <h:commandLink value="#{m.index_naslov}" action="#{slanjePoruke.pocetna}" class="btn btn-secondary"/>
+                                        </div>
+                                        <div class="col-6 col-sm-3">
+                                            <h:commandLink value="#{m.index_pregledPoruka}" action="#{slanjePoruke.pregledPoruka}" class="btn btn-secondary" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </h:form>
+                    </div>
+                </div>
+            </div>
         </h:body>
     </f:view>
 </html>
